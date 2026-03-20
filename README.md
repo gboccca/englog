@@ -1,6 +1,6 @@
 # EngLog — The Engineering Logbook That Writes Itself
 
-**Capture decisions, not just tasks.**
+**Capture the flow, not just tasks.**
 
 ---
 
@@ -541,7 +541,7 @@ The SQLite database handles millions of rows without performance issues. The mai
 - Ollama must be installed separately
 
 **Planned improvements - order of priority:**
-0. ~~answer question: how do the models work? are they all free? can i pull any of the listed ones as i wish, just to try?~~ **Answered** — yes, all models are free/open-source. `ollama pull <model>` downloads them locally (~4-8 GB for 7B models). No API keys or accounts needed. Browse all available models at ollama.com/library. `ollama list` shows installed, `ollama rm <model>` removes. Only constraint is RAM (~8 GB for 7B, ~16 GB for 22B).
+
 1. ~~create fake but realistic example data for a fictitious project, to generate a sample "demo" summary on~~ **Done** — `englog demo` creates a realistic aerospace engineering project (SolarSailNav) with 20 notes (decisions, blockers, observations), 30 capture transitions, and project context/rules. Ready for `englog summary` and `englog export`. Remove with `englog delete-project SolarSailNav`.
 2. ~~add a better management system of various projects/sessions (can delete/rename/manually modify projects/entries if needed)~~ **Done** — GUI: Rename/Delete buttons on Project tab, Delete button on each session card in History tab. CLI: `englog rename-project`, `englog delete-project`, `englog delete-session`. All deletions cascade (notes, captures, screenshots) with confirmation prompts. Active sessions are protected.
 3. ~~Global hotkey for instant note capture (no window switch needed) and classify notes into [OBSERVATIONS]/[DECISIONS]/[GENERAL]~~ **Done** — **Ctrl+Shift+N** opens a small floating popup from any application. Type your note, see live type detection (decision/blocker/observation), press Enter. The popup saves the note and closes automatically. No window switching needed. Uses the `keyboard` library for system-wide hotkey registration.
