@@ -169,13 +169,14 @@ def _render_markdown(textbox: ctk.CTkTextbox, text: str):
 class EngLogApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        from englog.config import load_settings
+        load_settings()
         db.init_db()
 
         self.title("EngLog")
         self.geometry("420x580")
         self.minsize(380, 500)
         self.resizable(True, True)
-        self.attributes("-topmost", True)
         self.configure(fg_color=COLOR_BG)
 
         # State
@@ -1536,13 +1537,14 @@ class SettingsFrame(ctk.CTkFrame):
         ctk.CTkLabel(capture_frame, text="Screenshot Interval:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(8, 0))
         interval_row = ctk.CTkFrame(capture_frame, fg_color="transparent")
         interval_row.pack(fill="x", padx=10, pady=2)
+        import englog.config as _cfg
         self._interval_slider = ctk.CTkSlider(
             interval_row, from_=10, to=120, number_of_steps=22,
             command=self._on_interval_changed,
         )
-        self._interval_slider.set(SCREENSHOT_INTERVAL_SECONDS)
+        self._interval_slider.set(_cfg.SCREENSHOT_INTERVAL_SECONDS)
         self._interval_slider.pack(side="left", fill="x", expand=True)
-        self._interval_label = ctk.CTkLabel(interval_row, text=f"{SCREENSHOT_INTERVAL_SECONDS}s", font=ctk.CTkFont(size=12), width=40)
+        self._interval_label = ctk.CTkLabel(interval_row, text=f"{_cfg.SCREENSHOT_INTERVAL_SECONDS}s", font=ctk.CTkFont(size=12), width=40)
         self._interval_label.pack(side="right", padx=4)
 
         # Quality slider
@@ -1553,9 +1555,9 @@ class SettingsFrame(ctk.CTkFrame):
             quality_row, from_=10, to=95, number_of_steps=17,
             command=self._on_quality_changed,
         )
-        self._quality_slider.set(SCREENSHOT_QUALITY)
+        self._quality_slider.set(_cfg.SCREENSHOT_QUALITY)
         self._quality_slider.pack(side="left", fill="x", expand=True)
-        self._quality_label = ctk.CTkLabel(quality_row, text=str(SCREENSHOT_QUALITY), font=ctk.CTkFont(size=12), width=40)
+        self._quality_label = ctk.CTkLabel(quality_row, text=str(_cfg.SCREENSHOT_QUALITY), font=ctk.CTkFont(size=12), width=40)
         self._quality_label.pack(side="right", padx=4)
 
         # Storage estimate hint (updated dynamically)
@@ -1584,7 +1586,7 @@ class SettingsFrame(ctk.CTkFrame):
 
         # ── Footer ──
         ctk.CTkLabel(self, text="Settings apply to new sessions.", font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(anchor="w", padx=14, pady=(10, 2))
-        ctk.CTkLabel(self, text="EngLog v0.2.0", font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(anchor="w", padx=14, pady=(0, 10))
+        ctk.CTkLabel(self, text="EngLog v1.0.0", font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(anchor="w", padx=14, pady=(0, 10))
 
     def on_show(self):
         self._check_ollama()
@@ -1715,6 +1717,7 @@ class SettingsFrame(ctk.CTkFrame):
         if profile:
             config.OLLAMA_NUM_CTX = profile["ctx"]
         self._update_model_description(model_name)
+        config.save_settings()
 
     def _on_interval_changed(self, value: float):
         import englog.config as config
@@ -1722,6 +1725,7 @@ class SettingsFrame(ctk.CTkFrame):
         config.SCREENSHOT_INTERVAL_SECONDS = val
         self._interval_label.configure(text=f"{val}s")
         self._update_capture_hint()
+        config.save_settings()
 
     def _on_quality_changed(self, value: float):
         import englog.config as config
@@ -1729,6 +1733,7 @@ class SettingsFrame(ctk.CTkFrame):
         config.SCREENSHOT_QUALITY = val
         self._quality_label.configure(text=str(val))
         self._update_capture_hint()
+        config.save_settings()
 
 
 # ── Entry point ──────────────────────────────────────────
