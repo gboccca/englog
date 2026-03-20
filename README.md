@@ -1,6 +1,6 @@
 # EngLog — The Engineering Logbook That Writes Itself
 
-**Capture decisions, not just tasks.**
+**Capture the flow, not just tasks.**
 
 ---
 
