@@ -2,7 +2,7 @@
 
 import shutil
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -390,3 +390,127 @@ def get_session_captures(session_id: int) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── Dashboard stats ──────────────────────────────────────
+
+def get_dashboard_stats() -> dict:
+    """Return stats for the idle dashboard on the Session tab."""
+    conn = get_connection()
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    # Monday of current week
+    monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+
+    # Hours today
+    rows = conn.execute(
+        """SELECT started_at, ended_at FROM sessions
+           WHERE started_at >= ? AND ended_at IS NOT NULL""",
+        (today,),
+    ).fetchall()
+    today_seconds = sum(_session_duration_seconds(r) for r in rows)
+
+    # Hours this week
+    rows = conn.execute(
+        """SELECT started_at, ended_at FROM sessions
+           WHERE started_at >= ? AND ended_at IS NOT NULL""",
+        (monday,),
+    ).fetchall()
+    week_seconds = sum(_session_duration_seconds(r) for r in rows)
+
+    # Sessions this week
+    week_session_count = conn.execute(
+        "SELECT COUNT(*) FROM sessions WHERE started_at >= ?", (monday,),
+    ).fetchone()[0]
+
+    # Notes this week
+    week_note_count = conn.execute(
+        """SELECT COUNT(*) FROM notes n JOIN sessions s ON n.session_id = s.id
+           WHERE s.started_at >= ?""",
+        (monday,),
+    ).fetchone()[0]
+
+    # Decisions this week
+    week_decisions = conn.execute(
+        """SELECT COUNT(*) FROM notes n JOIN sessions s ON n.session_id = s.id
+           WHERE s.started_at >= ? AND n.note_type = 'decision'""",
+        (monday,),
+    ).fetchone()[0]
+
+    # Current streak (consecutive days with at least 1 session)
+    day_rows = conn.execute(
+        """SELECT DISTINCT DATE(started_at) as d FROM sessions
+           WHERE ended_at IS NOT NULL ORDER BY d DESC""",
+    ).fetchall()
+    streak = 0
+    check_date = now.date()
+    for row in day_rows:
+        d = datetime.strptime(row["d"], "%Y-%m-%d").date()
+        if d == check_date:
+            streak += 1
+            check_date -= timedelta(days=1)
+        elif d < check_date:
+            break
+    # If no session today yet, check if streak is from yesterday
+    if streak == 0 and day_rows:
+        d = datetime.strptime(day_rows[0]["d"], "%Y-%m-%d").date()
+        yesterday = now.date() - timedelta(days=1)
+        if d == yesterday:
+            check_date = yesterday
+            for row in day_rows:
+                d = datetime.strptime(row["d"], "%Y-%m-%d").date()
+                if d == check_date:
+                    streak += 1
+                    check_date -= timedelta(days=1)
+                elif d < check_date:
+                    break
+
+    # Top 3 apps this week
+    app_rows = conn.execute(
+        """SELECT c.active_process, COUNT(*) as cnt
+           FROM captures c JOIN sessions s ON c.session_id = s.id
+           WHERE s.started_at >= ? AND c.active_process IS NOT NULL
+             AND c.active_process != 'unknown'
+           GROUP BY c.active_process ORDER BY cnt DESC LIMIT 3""",
+        (monday,),
+    ).fetchall()
+    top_apps = [(r["active_process"], r["cnt"]) for r in app_rows]
+
+    # Total hours all time
+    rows = conn.execute(
+        "SELECT started_at, ended_at FROM sessions WHERE ended_at IS NOT NULL",
+    ).fetchall()
+    total_seconds = sum(_session_duration_seconds(r) for r in rows)
+
+    # Recent sessions (last 5 completed)
+    recent = conn.execute(
+        """SELECT s.id, p.name as project_name, s.started_at, s.ended_at,
+                  s.summary,
+                  (SELECT COUNT(*) FROM notes n WHERE n.session_id = s.id) as note_count
+           FROM sessions s JOIN projects p ON s.project_id = p.id
+           WHERE s.ended_at IS NOT NULL
+           ORDER BY s.started_at DESC LIMIT 5""",
+    ).fetchall()
+
+    conn.close()
+    return {
+        "today_seconds": today_seconds,
+        "week_seconds": week_seconds,
+        "week_sessions": week_session_count,
+        "week_notes": week_note_count,
+        "week_decisions": week_decisions,
+        "streak": streak,
+        "top_apps": top_apps,
+        "total_seconds": total_seconds,
+        "recent_sessions": [dict(r) for r in recent],
+    }
+
+
+def _session_duration_seconds(row) -> int:
+    """Calculate duration in seconds from a session row with started_at/ended_at."""
+    try:
+        start = datetime.strptime(row["started_at"], "%Y-%m-%d %H:%M:%S")
+        end = datetime.strptime(row["ended_at"], "%Y-%m-%d %H:%M:%S")
+        return max(0, int((end - start).total_seconds()))
+    except (ValueError, TypeError):
+        return 0

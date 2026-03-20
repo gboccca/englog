@@ -34,20 +34,38 @@ from englog.config import (
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
-COLOR_BG = "#F7F8FA"
+COLOR_BG = "#F5F4F1"
 COLOR_CARD = "#FFFFFF"
-COLOR_ACCENT = "#2F5496"
-COLOR_GREEN = "#27AE60"
-COLOR_RED = "#E74C3C"
-COLOR_ORANGE = "#F39C12"
-COLOR_DIM = "#888888"
-COLOR_BORDER = "#E0E0E0"
+COLOR_ACCENT = "#2B4C8C"
+COLOR_GREEN = "#22A55B"
+COLOR_RED = "#DC3545"
+COLOR_ORANGE = "#E6930A"
+COLOR_DIM = "#8C8C8C"
+COLOR_BORDER = "#E8E6E1"
+COLOR_TEXT = "#1A1A1A"
+COLOR_TEXT_SEC = "#6B6B6B"
+
+COLOR_STATUS_IDLE = "#EEEDEA"
+COLOR_STATUS_RECORDING = "#E8F5E9"
+COLOR_STATUS_PAUSED = "#FFF8E1"
+
+COLOR_BTN_SECONDARY_BG = "#EEECEA"
+COLOR_BTN_SECONDARY_HOVER = "#E0DEDA"
+COLOR_BTN_DANGER_HOVER = "#FDE8EA"
 
 TYPE_COLORS = {
-    "decision": "#9B59B6",
-    "blocker": "#E74C3C",
-    "observation": "#3498DB",
+    "decision": "#8B5CF6",
+    "blocker": "#DC3545",
+    "observation": "#3B82F6",
 }
+TYPE_BG_TINTS = {
+    "decision": "#F3EEFE",
+    "blocker": "#FDE8EA",
+    "observation": "#E8F0FE",
+}
+
+FONT_FAMILY = "Segoe UI"
+FONT_MONO = "Consolas"
 
 # ── Model profiles ──────────────────────────────────────
 # Known models with recommended settings and descriptions.
@@ -101,15 +119,15 @@ _MD_INLINE_RE = re.compile(r'(\*\*.*?\*\*|\[DECISION\]|\[BLOCKER\])')
 def _configure_md_tags(textbox: ctk.CTkTextbox):
     """Configure Markdown text tags on a CTkTextbox's underlying tk Text widget."""
     tw = textbox._textbox
-    tw.tag_configure("h1", font=("Segoe UI", 16, "bold"), spacing1=6, spacing3=4)
-    tw.tag_configure("h2", font=("Segoe UI", 13, "bold"), spacing1=6, spacing3=2)
-    tw.tag_configure("h3", font=("Segoe UI", 12, "bold"), spacing1=4, spacing3=2)
-    tw.tag_configure("bold", font=("Consolas", 11, "bold"))
+    tw.tag_configure("h1", font=(FONT_FAMILY, 16, "bold"), spacing1=6, spacing3=4)
+    tw.tag_configure("h2", font=(FONT_FAMILY, 13, "bold"), spacing1=6, spacing3=2)
+    tw.tag_configure("h3", font=(FONT_FAMILY, 12, "bold"), spacing1=4, spacing3=2)
+    tw.tag_configure("bold", font=(FONT_MONO, 11, "bold"))
     tw.tag_configure("bullet", lmargin1=16, lmargin2=28)
     tw.tag_configure("indent", lmargin1=32, lmargin2=40)
-    tw.tag_configure("decision", font=("Consolas", 11, "bold"), foreground="#9B59B6")
-    tw.tag_configure("blocker", font=("Consolas", 11, "bold"), foreground="#E74C3C")
-    tw.tag_configure("status_line", font=("Consolas", 11, "italic"), foreground=COLOR_ACCENT)
+    tw.tag_configure("decision", font=(FONT_MONO, 11, "bold"), foreground="#8B5CF6")
+    tw.tag_configure("blocker", font=(FONT_MONO, 11, "bold"), foreground="#DC3545")
+    tw.tag_configure("status_line", font=(FONT_MONO, 11, "italic"), foreground=COLOR_ACCENT)
 
 
 def _render_markdown(textbox: ctk.CTkTextbox, text: str):
@@ -174,8 +192,9 @@ class EngLogApp(ctk.CTk):
         db.init_db()
 
         self.title("EngLog")
-        self.geometry("420x580")
-        self.minsize(380, 500)
+        screen_h = int(self.winfo_screenheight() * 0.88)
+        self.geometry(f"450x{screen_h}")
+        self.minsize(400, 525)
         self.resizable(True, True)
         self.configure(fg_color=COLOR_BG)
 
@@ -184,7 +203,7 @@ class EngLogApp(ctk.CTk):
         self._session_started_at: Optional[datetime] = None
 
         # ── Navigation bar ──
-        self._nav_frame = ctk.CTkFrame(self, fg_color=COLOR_ACCENT, corner_radius=0, height=40)
+        self._nav_frame = ctk.CTkFrame(self, fg_color=COLOR_ACCENT, corner_radius=0, height=42)
         self._nav_frame.pack(fill="x")
         self._nav_frame.pack_propagate(False)
 
@@ -195,16 +214,20 @@ class EngLogApp(ctk.CTk):
                 self._nav_frame,
                 text=label,
                 width=80,
-                height=36,
+                height=38,
                 corner_radius=0,
                 fg_color="transparent",
-                hover_color="#1A3A6E",
-                text_color="white",
-                font=ctk.CTkFont(size=13, weight="bold"),
+                hover_color="#3D5FA0",
+                text_color="#B8C8E0",
+                font=ctk.CTkFont(family=FONT_FAMILY, size=13),
                 command=lambda idx=i: self._show_frame(idx),
             )
             btn.pack(side="left", padx=1)
             self._nav_buttons.append(btn)
+
+        # Underline indicator for active tab (use tk.Frame to allow place with width/height)
+        import tkinter as tk
+        self._nav_underline = tk.Frame(self._nav_frame, bg="#FFFFFF", height=3)
 
         # ── Frames ──
         self._container = ctk.CTkFrame(self, fg_color=COLOR_BG, corner_radius=0)
@@ -234,7 +257,29 @@ class EngLogApp(ctk.CTk):
             return
         self._current_frame = index
         for i, btn in enumerate(self._nav_buttons):
-            btn.configure(fg_color="#1A3A6E" if i == index else "transparent")
+            if i == index:
+                btn.configure(
+                    fg_color="transparent",
+                    text_color="#FFFFFF",
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+                )
+            else:
+                btn.configure(
+                    fg_color="transparent",
+                    text_color="#B8C8E0",
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+                )
+        # Position underline under active tab button
+        btn = self._nav_buttons[index]
+        self._nav_underline.place(
+            x=btn.winfo_x(), y=38,
+            width=btn.winfo_width(), height=3,
+        )
+        # Schedule a re-position after layout settles (first show)
+        self.after(10, lambda: self._nav_underline.place(
+            x=self._nav_buttons[index].winfo_x(), y=38,
+            width=self._nav_buttons[index].winfo_width(), height=3,
+        ))
         self._frames[index].tkraise()
         if hasattr(self._frames[index], "on_show"):
             self._frames[index].on_show()
@@ -307,7 +352,7 @@ class QuickNotePopup(ctk.CTkToplevel):
         self.overrideredirect(False)
 
         # Center on screen
-        w, h = 440, 130
+        w, h = 460, 140
         sx = self.winfo_screenwidth() // 2 - w // 2
         sy = self.winfo_screenheight() // 3 - h // 2
         self.geometry(f"{w}x{h}+{sx}+{sy}")
@@ -323,7 +368,7 @@ class QuickNotePopup(ctk.CTkToplevel):
             status_color = COLOR_RED
 
         ctk.CTkLabel(
-            self, text=status_text, font=ctk.CTkFont(size=11),
+            self, text=status_text, font=ctk.CTkFont(family=FONT_FAMILY, size=11),
             text_color=status_color,
         ).pack(anchor="w", padx=12, pady=(8, 2))
 
@@ -333,7 +378,8 @@ class QuickNotePopup(ctk.CTkToplevel):
 
         self._entry = ctk.CTkEntry(
             entry_row, placeholder_text="Type your note and press Enter...",
-            font=ctk.CTkFont(size=13), height=36,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=13), height=36,
+            corner_radius=10,
         )
         self._entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
         self._entry.bind("<Return>", lambda e: self._submit())
@@ -342,7 +388,10 @@ class QuickNotePopup(ctk.CTkToplevel):
 
         self._submit_btn = ctk.CTkButton(
             entry_row, text="Add", width=60, height=36,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._submit,
             state="normal" if active_session else "disabled",
         )
@@ -350,7 +399,7 @@ class QuickNotePopup(ctk.CTkToplevel):
 
         # Type preview + feedback
         self._feedback = ctk.CTkLabel(
-            self, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM,
+            self, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM,
         )
         self._feedback.pack(anchor="w", padx=14, pady=(0, 6))
 
@@ -414,46 +463,49 @@ class SessionFrame(ctk.CTkFrame):
         self._type_debounce_job = None
 
         # ── Status bar ──
-        self._status_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        self._status_frame.pack(fill="x", padx=10, pady=(10, 5))
+        self._status_frame = ctk.CTkFrame(self, fg_color=COLOR_STATUS_IDLE, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        self._status_frame.pack(fill="x", padx=12, pady=(10, 5))
 
-        self._status_dot = ctk.CTkLabel(self._status_frame, text="", font=ctk.CTkFont(size=14), width=20)
-        self._status_dot.pack(side="left", padx=(10, 4))
-        self._status_label = ctk.CTkLabel(self._status_frame, text="No active session", font=ctk.CTkFont(size=13))
+        self._status_dot_frame = ctk.CTkFrame(self._status_frame, width=10, height=10, corner_radius=5, fg_color=COLOR_DIM)
+        self._status_dot_frame.pack(side="left", padx=(12, 6), pady=10)
+        self._status_dot_frame.pack_propagate(False)
+        self._status_label = ctk.CTkLabel(self._status_frame, text="No active session", font=ctk.CTkFont(family=FONT_FAMILY, size=13), text_color=COLOR_TEXT)
         self._status_label.pack(side="left", padx=4, fill="x", expand=True)
-        self._timer_label = ctk.CTkLabel(self._status_frame, text="", font=ctk.CTkFont(size=13, weight="bold"), width=80)
-        self._timer_label.pack(side="right", padx=10)
+        self._timer_label = ctk.CTkLabel(self._status_frame, text="", font=ctk.CTkFont(family=FONT_MONO, size=14, weight="bold"), width=80, text_color=COLOR_TEXT)
+        self._timer_label.pack(side="right", padx=12)
 
         # ── Project / description ──
-        self._setup_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        self._setup_frame.pack(fill="x", padx=10, pady=5)
+        self._setup_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        self._setup_frame.pack(fill="x", padx=12, pady=5)
 
-        ctk.CTkLabel(self._setup_frame, text="Project:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(8, 0))
+        ctk.CTkLabel(self._setup_frame, text="Project:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12, pady=(8, 0))
         self._project_combo = ctk.CTkComboBox(
             self._setup_frame, width=380, values=self._get_project_names(),
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12), corner_radius=10,
         )
-        self._project_combo.pack(padx=10, pady=(2, 4), fill="x")
+        self._project_combo.pack(padx=12, pady=(2, 4), fill="x")
         self._project_combo.set("")
 
-        ctk.CTkLabel(self._setup_frame, text="Description:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10)
-        self._desc_entry = ctk.CTkEntry(self._setup_frame, placeholder_text="Brief description (optional)", font=ctk.CTkFont(size=12))
-        self._desc_entry.pack(padx=10, pady=(2, 8), fill="x")
+        ctk.CTkLabel(self._setup_frame, text="Description:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12)
+        self._desc_entry = ctk.CTkTextbox(self._setup_frame, height=32, font=ctk.CTkFont(family=FONT_FAMILY, size=12), corner_radius=10, border_width=1, border_color=COLOR_BORDER, wrap="word")
+        self._desc_entry.pack(padx=12, pady=(2, 8), fill="x")
+        self._desc_entry._textbox.bind("<<Modified>>", lambda e: self._on_textbox_modified(self._desc_entry, 4))
+        self._desc_entry._current_lines = 1
 
         # ── Start/Stop + Pause buttons ──
         self._btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self._btn_frame.pack(fill="x", padx=10, pady=5)
+        self._btn_frame.pack(fill="x", padx=12, pady=5)
 
         self._action_btn = ctk.CTkButton(
-            self._btn_frame, text="Start Session", font=ctk.CTkFont(size=14, weight="bold"),
-            height=40, corner_radius=8, fg_color=COLOR_GREEN, hover_color="#219A52",
+            self._btn_frame, text="Start Session", font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
+            height=40, corner_radius=20, fg_color=COLOR_GREEN, hover_color="#1B8A4A",
             command=self._toggle_session,
         )
         self._action_btn.pack(side="left", fill="x", expand=True)
 
         self._pause_btn = ctk.CTkButton(
-            self._btn_frame, text="Pause", font=ctk.CTkFont(size=13, weight="bold"),
-            height=40, width=90, corner_radius=8, fg_color=COLOR_ORANGE, hover_color="#D68910",
+            self._btn_frame, text="Pause", font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            height=40, width=90, corner_radius=20, fg_color=COLOR_ORANGE, hover_color="#C97E08",
             command=self._toggle_pause,
         )
         # Not packed yet — shown only during active session
@@ -461,32 +513,42 @@ class SessionFrame(ctk.CTkFrame):
         self._is_paused = False
 
         # ── Note input ──
-        self._note_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        self._note_frame.pack(fill="x", padx=10, pady=5)
+        self._note_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        self._note_frame.pack(fill="x", padx=12, pady=5)
 
         note_row = ctk.CTkFrame(self._note_frame, fg_color="transparent")
-        note_row.pack(fill="x", padx=10, pady=(8, 2))
-        self._note_entry = ctk.CTkEntry(note_row, placeholder_text="Add a note...", font=ctk.CTkFont(size=12))
+        note_row.pack(fill="x", padx=12, pady=(8, 2))
+        self._note_entry = ctk.CTkTextbox(note_row, height=32, font=ctk.CTkFont(family=FONT_FAMILY, size=12), corner_radius=10, border_width=1, border_color=COLOR_BORDER, wrap="word")
         self._note_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
-        self._note_entry.bind("<Return>", lambda e: self._add_note())
+        self._note_entry.bind("<Return>", self._on_note_return)
         self._note_entry.bind("<KeyRelease>", self._on_note_keyrelease)
+        self._note_entry._textbox.bind("<<Modified>>", lambda e: self._on_textbox_modified(self._note_entry, 4))
+        self._note_entry._current_lines = 1
         self._add_note_btn = ctk.CTkButton(
-            note_row, text="Add", width=60, height=30, font=ctk.CTkFont(size=12),
+            note_row, text="Add", width=60, height=30,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._add_note,
         )
         self._add_note_btn.pack(side="right")
 
-        self._type_preview = ctk.CTkLabel(self._note_frame, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM)
+        self._type_preview = ctk.CTkLabel(self._note_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM)
         self._type_preview.pack(anchor="w", padx=14, pady=(0, 6))
 
-        # ── Recent notes ──
-        ctk.CTkLabel(self, text="Recent Notes", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", padx=14, pady=(6, 2))
-        self._notes_scroll = ctk.CTkScrollableFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        self._notes_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 5))
+        # ── Bottom panel (switches between live feed and idle dashboard) ──
+        self._bottom_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM)
+        self._bottom_label.pack(anchor="w", padx=16, pady=(8, 3))
+        self._bottom_scroll = ctk.CTkScrollableFrame(self, fg_color=COLOR_BG, corner_radius=0)
+        self._bottom_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 5))
 
         # ── Capture status ──
-        self._capture_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM)
-        self._capture_label.pack(anchor="w", padx=14, pady=(0, 8))
+        self._capture_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM)
+        self._capture_label.pack(anchor="w", padx=16, pady=(0, 8))
+
+        # Show idle dashboard initially
+        self._show_idle_dashboard()
 
         # Check for existing active session on startup
         self.after(100, self._check_existing_session)
@@ -518,7 +580,7 @@ class SessionFrame(ctk.CTkFrame):
             self._status_label.configure(text="Enter a project name", text_color=COLOR_RED)
             return
 
-        desc = self._desc_entry.get().strip()
+        desc = self._desc_entry.get("1.0", "end-1c").strip()
         result = start_new_session(project, desc)
         if "error" in result:
             self._status_label.configure(text=result["error"], text_color=COLOR_RED)
@@ -530,18 +592,19 @@ class SessionFrame(ctk.CTkFrame):
 
     def _enter_active_state(self, project: str, session_id: int, resume_capture: bool = False):
         """Switch UI to active-session mode."""
-        self._status_dot.configure(text="\u25CF", text_color=COLOR_GREEN)
-        self._status_label.configure(text=f"Recording: {project}", text_color="#333333")
-        self._action_btn.configure(text="Stop Session", fg_color=COLOR_RED, hover_color="#C0392B")
+        self._status_dot_frame.configure(fg_color=COLOR_GREEN)
+        self._status_frame.configure(fg_color=COLOR_STATUS_RECORDING)
+        self._status_label.configure(text=f"Recording: {project}", text_color=COLOR_TEXT)
+        self._action_btn.configure(text="Stop Session", fg_color=COLOR_RED, hover_color="#B82D3A")
 
         # Hide setup fields
         self._setup_frame.pack_forget()
 
         # Re-pack button frame and show pause button
-        self._btn_frame.pack(fill="x", padx=10, pady=5, before=self._note_frame)
+        self._btn_frame.pack(fill="x", padx=12, pady=5, before=self._note_frame)
         self._pause_btn.pack(side="left", padx=(6, 0))
         self._is_paused = False
-        self._pause_btn.configure(text="Pause", fg_color=COLOR_ORANGE, hover_color="#D68910")
+        self._pause_btn.configure(text="Pause", fg_color=COLOR_ORANGE, hover_color="#C97E08")
 
         # Start capture
         if resume_capture and not self.app._capture_engine:
@@ -553,8 +616,9 @@ class SessionFrame(ctk.CTkFrame):
 
         # Start timer
         self._update_timer()
-        # Refresh notes
-        self._refresh_notes(session_id)
+        # Switch bottom panel to live feed
+        self._bottom_label.configure(text="LIVE ACTIVITY")
+        self._refresh_live_feed(session_id)
         # Refresh project combo values
         self._project_combo.configure(values=self._get_project_names())
 
@@ -587,8 +651,9 @@ class SessionFrame(ctk.CTkFrame):
                 self.app._capture_engine.stop()
                 self.app._capture_engine = None
             self._is_paused = True
-            self._pause_btn.configure(text="Resume", fg_color=COLOR_GREEN, hover_color="#219A52")
-            self._status_dot.configure(text="\u25CF", text_color=COLOR_ORANGE)
+            self._pause_btn.configure(text="Resume", fg_color=COLOR_GREEN, hover_color="#1B8A4A")
+            self._status_dot_frame.configure(fg_color=COLOR_ORANGE)
+            self._status_frame.configure(fg_color=COLOR_STATUS_PAUSED)
             self._status_label.configure(text=f"Paused: {active['project']}", text_color=COLOR_ORANGE)
             self._capture_label.configure(text="Capture paused — notes still active")
         else:
@@ -599,16 +664,18 @@ class SessionFrame(ctk.CTkFrame):
             self.app._capture_engine = CaptureEngine(session_id, on_capture=on_capture)
             self.app._capture_engine.start()
             self._is_paused = False
-            self._pause_btn.configure(text="Pause", fg_color=COLOR_ORANGE, hover_color="#D68910")
-            self._status_dot.configure(text="\u25CF", text_color=COLOR_GREEN)
-            self._status_label.configure(text=f"Recording: {active['project']}", text_color="#333333")
+            self._pause_btn.configure(text="Pause", fg_color=COLOR_ORANGE, hover_color="#C97E08")
+            self._status_dot_frame.configure(fg_color=COLOR_GREEN)
+            self._status_frame.configure(fg_color=COLOR_STATUS_RECORDING)
+            self._status_label.configure(text=f"Recording: {active['project']}", text_color=COLOR_TEXT)
             self._capture_label.configure(text=f"Capturing every {SCREENSHOT_INTERVAL_SECONDS}s")
 
     def _exit_active_state(self):
         """Switch UI back to idle mode."""
-        self._status_dot.configure(text="\u25CB", text_color=COLOR_DIM)
+        self._status_dot_frame.configure(fg_color=COLOR_DIM)
+        self._status_frame.configure(fg_color=COLOR_STATUS_IDLE)
         self._timer_label.configure(text="")
-        self._action_btn.configure(text="Start Session", fg_color=COLOR_GREEN, hover_color="#219A52")
+        self._action_btn.configure(text="Start Session", fg_color=COLOR_GREEN, hover_color="#1B8A4A")
         self._capture_label.configure(text="")
         self.app._session_started_at = None
         self._is_paused = False
@@ -623,13 +690,12 @@ class SessionFrame(ctk.CTkFrame):
 
         # Hide pause button, show setup fields again
         self._pause_btn.pack_forget()
-        self._setup_frame.pack(fill="x", padx=10, pady=5, after=self._status_frame)
+        self._setup_frame.pack(fill="x", padx=12, pady=5, after=self._status_frame)
         self._btn_frame.pack_forget()
-        self._btn_frame.pack(fill="x", padx=10, pady=5, after=self._setup_frame)
+        self._btn_frame.pack(fill="x", padx=12, pady=5, after=self._setup_frame)
 
-        # Clear notes display
-        for w in self._notes_scroll.winfo_children():
-            w.destroy()
+        # Switch bottom panel back to idle dashboard
+        self._show_idle_dashboard()
 
     def _update_timer(self):
         if not self.app._session_started_at:
@@ -641,13 +707,19 @@ class SessionFrame(ctk.CTkFrame):
         self._timer_label.configure(text=f"{h:02d}:{m:02d}:{s:02d}")
         self._timer_job = self.after(1000, self._update_timer)
 
+    def _on_note_return(self, event):
+        """Submit note on Enter, allow Shift+Enter for newline."""
+        if not (event.state & 0x1):  # Shift not held
+            self._add_note()
+            return "break"  # Prevent newline insertion
+
     def _on_note_keyrelease(self, event):
         if self._type_debounce_job:
             self.after_cancel(self._type_debounce_job)
         self._type_debounce_job = self.after(300, self._update_type_preview)
 
     def _update_type_preview(self):
-        text = self._note_entry.get().strip()
+        text = self._note_entry.get("1.0", "end-1c").strip()
         if text:
             ntype = detect_note_type(text)
             color = TYPE_COLORS.get(ntype, COLOR_DIM)
@@ -655,8 +727,31 @@ class SessionFrame(ctk.CTkFrame):
         else:
             self._type_preview.configure(text="")
 
+    def _on_textbox_modified(self, textbox: ctk.CTkTextbox, max_lines: int = 4):
+        """Resize textbox height to fit content. Only reconfigures when line count changes."""
+        # Reset the modified flag so the event fires again next time
+        textbox._textbox.edit_modified(False)
+        # Update after idle so the widget has finished laying out the text
+        self.after_idle(lambda: self._resize_textbox(textbox, max_lines))
+
+    def _resize_textbox(self, textbox: ctk.CTkTextbox, max_lines: int):
+        """Compute display line count and resize if changed."""
+        inner = textbox._textbox
+        try:
+            # Count actual display lines (accounts for word wrap)
+            num_display_lines = int(inner.count("1.0", "end", "displaylines") or 1)
+        except Exception:
+            num_display_lines = int(inner.index("end-1c").split(".")[0])
+        num_display_lines = max(1, min(num_display_lines, max_lines))
+        # Only reconfigure if line count changed
+        prev = getattr(textbox, "_current_lines", 1)
+        if num_display_lines != prev:
+            textbox._current_lines = num_display_lines
+            new_height = 32 + (num_display_lines - 1) * 20
+            textbox.configure(height=new_height)
+
     def _add_note(self):
-        content = self._note_entry.get().strip()
+        content = self._note_entry.get("1.0", "end-1c").strip()
         if not content:
             return
         note_type = detect_note_type(content)
@@ -664,46 +759,267 @@ class SessionFrame(ctk.CTkFrame):
         if "error" in result:
             self._type_preview.configure(text=result["error"], text_color=COLOR_RED)
             return
-        self._note_entry.delete(0, "end")
+        self._note_entry.delete("1.0", "end")
+        self._note_entry._current_lines = 1
+        self._note_entry.configure(height=32)
         self._type_preview.configure(text="")
-        # Refresh notes
+        # Refresh live feed
         active = get_active_session_info()
         if active:
-            self._refresh_notes(active["session_id"])
+            self._refresh_live_feed(active["session_id"])
 
-    def _refresh_notes(self, session_id: int):
+    def _refresh_live_feed(self, session_id: int):
+        """Show merged timeline of notes + capture transitions, newest first."""
         notes = db.get_session_notes(session_id)
+        captures = db.get_session_captures(session_id)
+
+        # Build unified timeline items
+        items = []
+        for n in notes:
+            items.append({
+                "kind": "note",
+                "timestamp": n["timestamp"],
+                "note_type": n["note_type"],
+                "content": n["content"],
+            })
+
+        # Only show capture *transitions* (when app/window changes)
+        prev_process = None
+        prev_window = None
+        for c in captures:
+            proc = c.get("active_process") or "unknown"
+            win = c.get("active_window") or "unknown"
+            if proc != prev_process or win != prev_window:
+                win_short = win[:60] + "..." if len(win) > 63 else win
+                items.append({
+                    "kind": "capture",
+                    "timestamp": c["timestamp"],
+                    "process": proc,
+                    "window": win_short,
+                })
+                prev_process = proc
+                prev_window = win
+
+        # Sort by timestamp, take last 25, show newest first
+        items.sort(key=lambda x: x["timestamp"])
+        items = list(reversed(items[-25:]))
+
+        # Skip rebuild if data hasn't changed (prevents flickering)
+        fingerprint = str([(i.get("timestamp"), i.get("kind"), i.get("content", i.get("process", ""))) for i in items])
+        if hasattr(self, "_feed_fingerprint") and self._feed_fingerprint == fingerprint:
+            # No changes — just reschedule
+            active = get_active_session_info()
+            if active:
+                self._notes_job = self.after(5000, lambda: self._refresh_live_feed(session_id))
+            return
+        self._feed_fingerprint = fingerprint
+
         # Clear existing
-        for w in self._notes_scroll.winfo_children():
+        for w in self._bottom_scroll.winfo_children():
             w.destroy()
-        # Show last 20, newest first
-        for n in reversed(notes[-20:]):
-            row = ctk.CTkFrame(self._notes_scroll, fg_color="transparent")
-            row.pack(fill="x", pady=1, padx=4)
 
-            ts = n["timestamp"].split(" ")[1][:5] if " " in n["timestamp"] else n["timestamp"]
-            ctk.CTkLabel(row, text=ts, font=ctk.CTkFont(size=11), text_color=COLOR_DIM, width=42).pack(side="left")
+        for item in items:
+            ts = item["timestamp"].split(" ")[1][:5] if " " in item["timestamp"] else item["timestamp"]
 
-            ntype = n["note_type"]
-            color = TYPE_COLORS.get(ntype, COLOR_DIM)
-            type_label = ctk.CTkLabel(
-                row, text=ntype[:5].upper(), font=ctk.CTkFont(size=10, weight="bold"),
-                text_color=color, width=50,
-            )
-            type_label.pack(side="left", padx=(4, 4))
+            if item["kind"] == "note":
+                ntype = item["note_type"]
+                accent_color = TYPE_COLORS.get(ntype, COLOR_DIM)
+                tint_color = TYPE_BG_TINTS.get(ntype, None)
+                badge_bg = tint_color if tint_color else COLOR_BTN_SECONDARY_BG
+                content = item["content"]
 
-            ctk.CTkLabel(row, text=n["content"], font=ctk.CTkFont(size=11), anchor="w").pack(side="left", fill="x", expand=True)
+                card = ctk.CTkFrame(self._bottom_scroll, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER, height=0)
+                card.pack(fill="x", pady=2, padx=2)
+
+                accent_bar = ctk.CTkFrame(card, fg_color=accent_color, width=4, height=0, corner_radius=2)
+                accent_bar.pack(side="left", fill="y")
+
+                content_frame = ctk.CTkFrame(card, fg_color="transparent", height=0)
+                content_frame.pack(side="left", fill="x", expand=True, padx=(8, 8), pady=(4, 4))
+
+                top_row = ctk.CTkFrame(content_frame, fg_color="transparent", height=0)
+                top_row.pack(fill="x")
+
+                ctk.CTkLabel(
+                    top_row, text=ntype[:5].upper(),
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=9, weight="bold"),
+                    text_color=accent_color, fg_color=badge_bg,
+                    corner_radius=6, height=18, width=46,
+                ).pack(side="left")
+                ctk.CTkLabel(top_row, text=ts, font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM).pack(side="right")
+
+                ctk.CTkLabel(content_frame, text=content, font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_TEXT, anchor="w", wraplength=380).pack(fill="x", pady=(2, 0))
+
+            else:  # capture transition
+                row = ctk.CTkFrame(self._bottom_scroll, fg_color="transparent", height=20)
+                row.pack(fill="x", pady=0, padx=6)
+                row.pack_propagate(False)
+                ctk.CTkLabel(
+                    row, text=f"{ts}  \u2192  {item['process']}",
+                    font=ctk.CTkFont(family=FONT_MONO, size=10),
+                    text_color=COLOR_DIM, anchor="w",
+                ).pack(side="left")
+                ctk.CTkLabel(
+                    row, text=item["window"],
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+                    text_color="#AAAAAA", anchor="e",
+                ).pack(side="right", padx=(4, 0))
 
         # Schedule next refresh if session active
         active = get_active_session_info()
         if active:
-            self._notes_job = self.after(5000, lambda: self._refresh_notes(session_id))
+            self._notes_job = self.after(5000, lambda: self._refresh_live_feed(session_id))
+
+    def _show_idle_dashboard(self):
+        """Show stats dashboard when no session is active."""
+        self._feed_fingerprint = None
+        self._bottom_label.configure(text="DASHBOARD")
+        for w in self._bottom_scroll.winfo_children():
+            w.destroy()
+
+        try:
+            stats = db.get_dashboard_stats()
+        except Exception:
+            ctk.CTkLabel(
+                self._bottom_scroll, text="No data yet — start your first session!",
+                font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_DIM,
+            ).pack(pady=20)
+            return
+
+        # ── Stat cards row ──
+        cards_frame = ctk.CTkFrame(self._bottom_scroll, fg_color="transparent")
+        cards_frame.pack(fill="x", padx=2, pady=(4, 8))
+        cards_frame.columnconfigure((0, 1, 2), weight=1)
+
+        def _format_duration(seconds: int) -> str:
+            h, m = divmod(seconds // 60, 60)
+            if h > 0:
+                return f"{h}h {m:02d}m"
+            return f"{m}m"
+
+        stat_items = [
+            ("Today", _format_duration(stats["today_seconds"])),
+            ("This week", _format_duration(stats["week_seconds"])),
+            (("Streak" if stats["streak"] > 0 else "Streak"), f"{stats['streak']}d" if stats["streak"] > 0 else "—"),
+        ]
+        for col, (label, value) in enumerate(stat_items):
+            card = ctk.CTkFrame(cards_frame, fg_color=COLOR_CARD, corner_radius=10, border_width=1, border_color=COLOR_BORDER)
+            card.grid(row=0, column=col, padx=3, sticky="nsew")
+            ctk.CTkLabel(card, text=value, font=ctk.CTkFont(family=FONT_FAMILY, size=18, weight="bold"), text_color=COLOR_ACCENT).pack(padx=8, pady=(8, 0))
+            ctk.CTkLabel(card, text=label, font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM).pack(padx=8, pady=(0, 8))
+
+        # ── Week summary line ──
+        parts = []
+        if stats["week_sessions"] > 0:
+            parts.append(f"{stats['week_sessions']} session{'s' if stats['week_sessions'] != 1 else ''}")
+        if stats["week_notes"] > 0:
+            parts.append(f"{stats['week_notes']} notes")
+        if stats["week_decisions"] > 0:
+            parts.append(f"{stats['week_decisions']} decisions")
+        if parts:
+            summary_text = "This week: " + " \u00b7 ".join(parts)
+            ctk.CTkLabel(
+                self._bottom_scroll, text=summary_text,
+                font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_TEXT_SEC,
+            ).pack(anchor="w", padx=8, pady=(0, 4))
+
+        # ── Top apps this week ──
+        if stats["top_apps"]:
+            apps_text = "Top apps: " + ", ".join(
+                app for app, _cnt in stats["top_apps"]
+            )
+            ctk.CTkLabel(
+                self._bottom_scroll, text=apps_text,
+                font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
+            ).pack(anchor="w", padx=8, pady=(0, 8))
+
+        # ── Recent sessions ──
+        recent = stats["recent_sessions"]
+        if recent:
+            ctk.CTkLabel(
+                self._bottom_scroll, text="RECENT SESSIONS",
+                font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
+            ).pack(anchor="w", padx=6, pady=(4, 3))
+
+            for s in recent[:5]:
+                card = ctk.CTkFrame(self._bottom_scroll, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
+                card.pack(fill="x", pady=2, padx=2)
+
+                info_frame = ctk.CTkFrame(card, fg_color="transparent")
+                info_frame.pack(side="left", fill="both", expand=True, padx=(10, 4), pady=6)
+
+                # Project name + date
+                top_row = ctk.CTkFrame(info_frame, fg_color="transparent")
+                top_row.pack(fill="x")
+                ctk.CTkLabel(
+                    top_row, text=s["project_name"],
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=12, weight="bold"),
+                    text_color=COLOR_TEXT, anchor="w",
+                ).pack(side="left")
+
+                # Relative date
+                try:
+                    started = datetime.strptime(s["started_at"], "%Y-%m-%d %H:%M:%S")
+                    delta = datetime.now() - started
+                    if delta.days == 0:
+                        rel = "today"
+                    elif delta.days == 1:
+                        rel = "yesterday"
+                    else:
+                        rel = f"{delta.days}d ago"
+                except (ValueError, TypeError):
+                    rel = s["started_at"][:10]
+                ctk.CTkLabel(
+                    top_row, text=rel,
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
+                ).pack(side="right")
+
+                # Duration + note count
+                duration_text = ""
+                if s["ended_at"]:
+                    try:
+                        start_dt = datetime.strptime(s["started_at"], "%Y-%m-%d %H:%M:%S")
+                        end_dt = datetime.strptime(s["ended_at"], "%Y-%m-%d %H:%M:%S")
+                        dur_min = int((end_dt - start_dt).total_seconds()) // 60
+                        h, m = divmod(dur_min, 60)
+                        duration_text = f"{h}h {m:02d}m" if h > 0 else f"{m}m"
+                    except (ValueError, TypeError):
+                        pass
+                meta_parts = []
+                if duration_text:
+                    meta_parts.append(duration_text)
+                meta_parts.append(f"{s['note_count']} notes")
+                ctk.CTkLabel(
+                    info_frame, text=" \u00b7 ".join(meta_parts),
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_TEXT_SEC, anchor="w",
+                ).pack(fill="x")
+
+                # View button
+                sid = s["id"]
+                ctk.CTkButton(
+                    card, text="View", width=50, height=26,
+                    font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+                    corner_radius=12, fg_color=COLOR_BTN_SECONDARY_BG,
+                    hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+                    border_width=1, border_color=COLOR_BORDER,
+                    command=lambda s_id=sid: self.app.navigate_to_summary(s_id),
+                ).pack(side="right", padx=8, pady=6)
+
+        # ── Total all-time ──
+        if stats["total_seconds"] > 0:
+            total_text = f"All time: {_format_duration(stats['total_seconds'])} logged"
+            ctk.CTkLabel(
+                self._bottom_scroll, text=total_text,
+                font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
+            ).pack(anchor="w", padx=8, pady=(8, 4))
 
     def on_show(self):
         """Called when this frame becomes visible."""
         active = get_active_session_info()
         if active:
-            self._refresh_notes(active["session_id"])
+            self._refresh_live_feed(active["session_id"])
+        else:
+            self._show_idle_dashboard()
         self._project_combo.configure(values=self._get_project_names())
 
 
@@ -716,37 +1032,41 @@ class ProjectFrame(ctk.CTkFrame):
         self._save_debounce_job = None
 
         # ── Project selector ──
-        sel_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        sel_frame.pack(fill="x", padx=10, pady=(10, 5))
+        sel_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        sel_frame.pack(fill="x", padx=12, pady=(10, 5))
 
-        ctk.CTkLabel(sel_frame, text="Project:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 4), pady=8)
+        ctk.CTkLabel(sel_frame, text="Project:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(side="left", padx=(12, 4), pady=8)
         self._project_combo = ctk.CTkComboBox(
-            sel_frame, values=[], font=ctk.CTkFont(size=12),
-            command=self._on_project_selected,
+            sel_frame, values=[], font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=10, command=self._on_project_selected,
         )
         self._project_combo.pack(side="left", fill="x", expand=True, padx=4, pady=8)
         self._project_combo.set("")
 
         self._delete_proj_btn = ctk.CTkButton(
             sel_frame, text="Delete", width=54, height=26,
-            font=ctk.CTkFont(size=11), fg_color=COLOR_RED, hover_color="#C0392B",
-            command=self._delete_project,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            fg_color="transparent", hover_color=COLOR_BTN_DANGER_HOVER,
+            text_color=COLOR_RED, border_width=1, border_color=COLOR_RED,
+            corner_radius=16, command=self._delete_project,
         )
-        self._delete_proj_btn.pack(side="right", padx=(2, 10), pady=8)
+        self._delete_proj_btn.pack(side="right", padx=(2, 12), pady=8)
 
         self._rename_proj_btn = ctk.CTkButton(
             sel_frame, text="Rename", width=58, height=26,
-            font=ctk.CTkFont(size=11), fg_color="#7F8C8D", hover_color="#5D6D7E",
-            command=self._rename_project,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            fg_color=COLOR_BTN_SECONDARY_BG, hover_color=COLOR_BTN_SECONDARY_HOVER,
+            text_color=COLOR_TEXT, border_width=1, border_color=COLOR_BORDER,
+            corner_radius=16, command=self._rename_project,
         )
         self._rename_proj_btn.pack(side="right", padx=2, pady=8)
 
-        self._saved_label = ctk.CTkLabel(sel_frame, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM)
+        self._saved_label = ctk.CTkLabel(sel_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM)
         self._saved_label.pack(side="right", padx=(0, 4))
 
         # ── Tabview: Context / Rules / Examples ──
-        self._tabview = ctk.CTkTabview(self, height=180, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        self._tabview.pack(fill="x", padx=10, pady=5)
+        self._tabview = ctk.CTkTabview(self, height=180, corner_radius=12, border_width=1, border_color=COLOR_BORDER, segmented_button_selected_color=COLOR_ACCENT)
+        self._tabview.pack(fill="x", padx=12, pady=5)
 
         tab_ctx = self._tabview.add("Context")
         tab_rules = self._tabview.add("Rules (optional)")
@@ -756,12 +1076,12 @@ class ProjectFrame(ctk.CTkFrame):
         ctk.CTkLabel(
             tab_ctx,
             text="Describe what this project is about. The AI uses this to interpret sessions more precisely.",
-            font=ctk.CTkFont(size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
         ).pack(anchor="w", padx=4, pady=(0, 4))
 
         self._context_text = ctk.CTkTextbox(
-            tab_ctx, font=ctk.CTkFont(size=11), height=100,
-            corner_radius=6, border_width=1, border_color=COLOR_BORDER,
+            tab_ctx, font=ctk.CTkFont(family=FONT_FAMILY, size=11), height=100,
+            corner_radius=10, border_width=1, border_color=COLOR_BORDER,
         )
         self._context_text.pack(fill="both", expand=True, padx=4, pady=(0, 4))
         self._context_text.bind("<KeyRelease>", self._on_field_keyrelease)
@@ -771,12 +1091,12 @@ class ProjectFrame(ctk.CTkFrame):
             tab_rules,
             text="Add project-specific rules for the AI (e.g. \"always mention file names\", "
                  "\"distinguish meetings from solo work\", \"use French for the summary\").",
-            font=ctk.CTkFont(size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
         ).pack(anchor="w", padx=4, pady=(0, 4))
 
         self._rules_text = ctk.CTkTextbox(
-            tab_rules, font=ctk.CTkFont(size=11), height=100,
-            corner_radius=6, border_width=1, border_color=COLOR_BORDER,
+            tab_rules, font=ctk.CTkFont(family=FONT_FAMILY, size=11), height=100,
+            corner_radius=10, border_width=1, border_color=COLOR_BORDER,
         )
         self._rules_text.pack(fill="both", expand=True, padx=4, pady=(0, 4))
         self._rules_text.bind("<KeyRelease>", self._on_field_keyrelease)
@@ -785,33 +1105,38 @@ class ProjectFrame(ctk.CTkFrame):
         ctk.CTkLabel(
             tab_examples,
             text="Edit this example or replace with your own. The AI will match this style and detail level.",
-            font=ctk.CTkFont(size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
         ).pack(anchor="w", padx=4, pady=(0, 4))
 
         self._examples_text = ctk.CTkTextbox(
-            tab_examples, font=ctk.CTkFont(size=11), height=100,
-            corner_radius=6, border_width=1, border_color=COLOR_BORDER,
+            tab_examples, font=ctk.CTkFont(family=FONT_FAMILY, size=11), height=100,
+            corner_radius=10, border_width=1, border_color=COLOR_BORDER,
         )
         self._examples_text.pack(fill="both", expand=True, padx=4, pady=(0, 4))
         self._examples_text.bind("<KeyRelease>", self._on_field_keyrelease)
 
         # ── Project status (AI-generated) ──
-        status_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        status_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        status_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        status_frame.pack(fill="both", expand=True, padx=12, pady=5)
 
         status_header = ctk.CTkFrame(status_frame, fg_color="transparent")
-        status_header.pack(fill="x", padx=10, pady=(8, 2))
-        ctk.CTkLabel(status_header, text="Project Status", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+        status_header.pack(fill="x", padx=12, pady=(8, 2))
+        ctk.CTkLabel(status_header, text="Project Status", font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"), text_color=COLOR_TEXT).pack(side="left")
 
         self._gen_status_btn = ctk.CTkButton(
             status_header, text="Generate", width=70, height=26,
-            font=ctk.CTkFont(size=11), command=self._generate_status,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=20, fg_color=COLOR_ACCENT, hover_color="#1E3A6E",
+            command=self._generate_status,
         )
         self._gen_status_btn.pack(side="right", padx=(4, 0))
 
         self._regen_status_btn = ctk.CTkButton(
             status_header, text="Refresh", width=60, height=26,
-            font=ctk.CTkFont(size=11), fg_color=COLOR_ORANGE, hover_color="#D68910",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._generate_status,
         )
         self._regen_status_btn.pack(side="right")
@@ -819,23 +1144,23 @@ class ProjectFrame(ctk.CTkFrame):
         ctk.CTkLabel(
             status_frame,
             text="AI-generated summary of where this project currently stands.",
-            font=ctk.CTkFont(size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
-        ).pack(anchor="w", padx=10, pady=(0, 4))
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM, wraplength=370, anchor="w",
+        ).pack(anchor="w", padx=12, pady=(0, 4))
 
         self._status_text = ctk.CTkTextbox(
-            status_frame, font=ctk.CTkFont(family="Consolas", size=11),
-            corner_radius=6, border_width=1, border_color=COLOR_BORDER,
+            status_frame, font=ctk.CTkFont(family=FONT_MONO, size=11),
+            corner_radius=10, border_width=1, border_color=COLOR_BORDER,
             state="disabled",
         )
-        self._status_text.pack(fill="both", expand=True, padx=10, pady=(0, 4))
+        self._status_text.pack(fill="both", expand=True, padx=12, pady=(0, 4))
         _configure_md_tags(self._status_text)
 
         # ── Progress bar ──
-        self._progress = ctk.CTkProgressBar(status_frame, mode="indeterminate", height=6)
+        self._progress = ctk.CTkProgressBar(status_frame, mode="indeterminate", height=4, progress_color=COLOR_ACCENT)
         # Not packed by default — shown during generation
 
-        self._status_info = ctk.CTkLabel(status_frame, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM)
-        self._status_info.pack(anchor="w", padx=10, pady=(0, 8))
+        self._status_info = ctk.CTkLabel(status_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM)
+        self._status_info.pack(anchor="w", padx=12, pady=(0, 8))
 
     def on_show(self):
         self._refresh_project_list()
@@ -1010,28 +1335,35 @@ class HistoryFrame(ctk.CTkFrame):
         self.app = app
 
         # ── Filter bar ──
-        filter_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        filter_frame.pack(fill="x", padx=10, pady=(10, 5))
+        filter_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        filter_frame.pack(fill="x", padx=12, pady=(10, 5))
 
-        ctk.CTkLabel(filter_frame, text="Project:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 4))
+        ctk.CTkLabel(filter_frame, text="Project:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(side="left", padx=(12, 4))
         self._project_filter = ctk.CTkComboBox(
-            filter_frame, width=120, values=["All"], font=ctk.CTkFont(size=12),
-            command=lambda _: self._load_sessions(),
+            filter_frame, width=120, values=["All"], font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=10, command=lambda _: self._load_sessions(),
         )
         self._project_filter.pack(side="left", padx=4, pady=8)
         self._project_filter.set("All")
 
-        ctk.CTkLabel(filter_frame, text="Search:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 4))
-        self._search_entry = ctk.CTkEntry(filter_frame, placeholder_text="Search notes...", width=140, font=ctk.CTkFont(size=12))
+        ctk.CTkLabel(filter_frame, text="Search:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(side="left", padx=(10, 4))
+        self._search_entry = ctk.CTkEntry(filter_frame, placeholder_text="Search notes...", width=140, font=ctk.CTkFont(family=FONT_FAMILY, size=12), corner_radius=10)
         self._search_entry.pack(side="left", padx=4, pady=8, fill="x", expand=True)
         self._search_entry.bind("<Return>", lambda e: self._load_sessions())
 
-        search_btn = ctk.CTkButton(filter_frame, text="Go", width=40, height=28, font=ctk.CTkFont(size=12), command=self._load_sessions)
-        search_btn.pack(side="right", padx=(4, 10), pady=8)
+        search_btn = ctk.CTkButton(
+            filter_frame, text="Go", width=40, height=28,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
+            command=self._load_sessions,
+        )
+        search_btn.pack(side="right", padx=(4, 12), pady=8)
 
         # ── Sessions list ──
         self._sessions_scroll = ctk.CTkScrollableFrame(self, fg_color=COLOR_BG, corner_radius=0)
-        self._sessions_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self._sessions_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 10))
 
     def on_show(self):
         # Refresh project list
@@ -1062,7 +1394,7 @@ class HistoryFrame(ctk.CTkFrame):
         if not sessions:
             ctk.CTkLabel(
                 self._sessions_scroll, text="No sessions found.",
-                font=ctk.CTkFont(size=12), text_color=COLOR_DIM,
+                font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_DIM,
             ).pack(pady=20)
             return
 
@@ -1070,26 +1402,26 @@ class HistoryFrame(ctk.CTkFrame):
             self._create_session_card(s)
 
     def _create_session_card(self, session: dict):
-        card = ctk.CTkFrame(self._sessions_scroll, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
+        card = ctk.CTkFrame(self._sessions_scroll, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
         card.pack(fill="x", pady=3)
 
         # Row 1: ID, project, date
         row1 = ctk.CTkFrame(card, fg_color="transparent")
-        row1.pack(fill="x", padx=10, pady=(8, 2))
+        row1.pack(fill="x", padx=12, pady=(8, 2))
 
         ctk.CTkLabel(
-            row1, text=f"#{session['id']}", font=ctk.CTkFont(size=12, weight="bold"), text_color=COLOR_ACCENT,
+            row1, text=f"#{session['id']}", font=ctk.CTkFont(family=FONT_FAMILY, size=12, weight="bold"), text_color=COLOR_ACCENT,
         ).pack(side="left")
         ctk.CTkLabel(
-            row1, text=session.get("project_name", "?"), font=ctk.CTkFont(size=12), text_color="#333",
+            row1, text=session.get("project_name", "?"), font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT,
         ).pack(side="left", padx=8)
 
         date_str = session["started_at"][:10]
-        ctk.CTkLabel(row1, text=date_str, font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(side="right")
+        ctk.CTkLabel(row1, text=date_str, font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM).pack(side="right")
 
         # Row 2: duration, notes count
         row2 = ctk.CTkFrame(card, fg_color="transparent")
-        row2.pack(fill="x", padx=10, pady=(0, 2))
+        row2.pack(fill="x", padx=12, pady=(0, 2))
 
         duration = ""
         if session.get("ended_at"):
@@ -1107,7 +1439,7 @@ class HistoryFrame(ctk.CTkFrame):
 
         notes_count = len(db.get_session_notes(session["id"]))
         info_text = f"{duration} | {notes_count} notes" if duration else f"{notes_count} notes"
-        ctk.CTkLabel(row2, text=info_text, font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(side="left")
+        ctk.CTkLabel(row2, text=info_text, font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM).pack(side="left")
 
         # Row 3: summary preview
         summary = session.get("summary") or ""
@@ -1116,26 +1448,32 @@ class HistoryFrame(ctk.CTkFrame):
             if len(summary) > 100:
                 preview += "..."
             ctk.CTkLabel(
-                card, text=preview, font=ctk.CTkFont(size=11), text_color="#666",
+                card, text=preview, font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_TEXT_SEC,
                 anchor="w", wraplength=370,
-            ).pack(padx=10, pady=(0, 4), fill="x")
+            ).pack(padx=12, pady=(0, 4), fill="x")
 
         # Buttons row
         btn_row = ctk.CTkFrame(card, fg_color="transparent")
-        btn_row.pack(anchor="e", padx=10, pady=(0, 8))
-
-        # Delete button (only for non-active sessions)
-        if not session.get("is_active"):
-            ctk.CTkButton(
-                btn_row, text="Delete", width=50, height=24,
-                font=ctk.CTkFont(size=11), fg_color=COLOR_RED, hover_color="#C0392B",
-                command=lambda sid=session["id"], pname=session.get("project_name", "?"): self._delete_session(sid, pname),
-            ).pack(side="right", padx=(4, 0))
+        btn_row.pack(anchor="e", padx=12, pady=(0, 8))
 
         ctk.CTkButton(
-            btn_row, text="View", width=50, height=24, font=ctk.CTkFont(size=11),
+            btn_row, text="View", width=50, height=24,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=16, fg_color=COLOR_ACCENT,
+            hover_color="#3D5FA0", text_color="#FFFFFF",
             command=lambda sid=session["id"]: self.app.navigate_to_summary(sid),
-        ).pack(side="right")
+        ).pack(side="left")
+
+        # Delete button (only for non-active sessions) — ghost/danger style
+        if not session.get("is_active"):
+            ctk.CTkButton(
+                btn_row, text="Delete", width=55, height=24,
+                font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+                fg_color="transparent", hover_color=COLOR_BTN_DANGER_HOVER,
+                text_color=COLOR_RED, border_width=1, border_color=COLOR_BORDER,
+                corner_radius=16,
+                command=lambda sid=session["id"], pname=session.get("project_name", "?"): self._delete_session(sid, pname),
+            ).pack(side="left", padx=(4, 0))
 
     def _delete_session(self, session_id: int, project_name: str):
         from tkinter import messagebox
@@ -1164,80 +1502,89 @@ class SummaryFrame(ctk.CTkFrame):
         self._current_session_id: Optional[int] = None
 
         # ── Session selector ──
-        sel_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        sel_frame.pack(fill="x", padx=10, pady=(10, 5))
+        sel_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        sel_frame.pack(fill="x", padx=12, pady=(10, 5))
 
-        ctk.CTkLabel(sel_frame, text="Session:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 4), pady=8)
+        ctk.CTkLabel(sel_frame, text="Session:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(side="left", padx=(12, 4), pady=8)
         self._session_combo = ctk.CTkComboBox(
-            sel_frame, values=[], font=ctk.CTkFont(size=12),
-            command=self._on_session_selected,
+            sel_frame, values=[], font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=10, command=self._on_session_selected,
         )
         self._session_combo.pack(side="left", fill="x", expand=True, padx=4, pady=8)
         self._session_combo.set("")
 
         # ── Model override for regeneration ──
-        model_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        model_frame.pack(fill="x", padx=10, pady=(0, 5))
+        model_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        model_frame.pack(fill="x", padx=12, pady=(0, 5))
 
-        ctk.CTkLabel(model_frame, text="Model:", font=ctk.CTkFont(size=11)).pack(side="left", padx=(10, 4), pady=6)
+        ctk.CTkLabel(model_frame, text="Model:", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_TEXT).pack(side="left", padx=(12, 4), pady=6)
         self._model_combo = ctk.CTkComboBox(
-            model_frame, values=[], width=140, font=ctk.CTkFont(size=11),
-            command=self._on_model_override,
+            model_frame, values=[], width=140, font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=10, command=self._on_model_override,
         )
         self._model_combo.pack(side="left", padx=4, pady=6)
         self._model_combo.set("")
 
         self._model_hint = ctk.CTkLabel(
-            model_frame, text="(current)", font=ctk.CTkFont(size=10), text_color=COLOR_DIM,
+            model_frame, text="(current)", font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
         )
         self._model_hint.pack(side="left", padx=4)
 
         # ── Summary display ──
         self._summary_text = ctk.CTkTextbox(
-            self, font=ctk.CTkFont(family="Consolas", size=11),
-            corner_radius=8, border_width=1, border_color=COLOR_BORDER,
+            self, font=ctk.CTkFont(family=FONT_MONO, size=11),
+            corner_radius=10, border_width=1, border_color=COLOR_BORDER,
             state="disabled",
         )
-        self._summary_text.pack(fill="both", expand=True, padx=10, pady=5)
+        self._summary_text.pack(fill="both", expand=True, padx=12, pady=5)
         _configure_md_tags(self._summary_text)
 
         # ── Progress bar ──
-        self._progress = ctk.CTkProgressBar(self, mode="indeterminate", height=6)
+        self._progress = ctk.CTkProgressBar(self, mode="indeterminate", height=4, progress_color=COLOR_ACCENT)
         # Not packed by default — shown during generation
 
         # ── Buttons ──
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=(5, 4))
+        btn_frame.pack(fill="x", padx=12, pady=(5, 4))
 
         self._gen_btn = ctk.CTkButton(
-            btn_frame, text="Generate Summary", font=ctk.CTkFont(size=12),
-            height=34, command=self._generate_summary,
+            btn_frame, text="Generate Summary",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12, weight="bold"),
+            height=34, corner_radius=20, fg_color=COLOR_ACCENT, hover_color="#1E3A6E",
+            command=self._generate_summary,
         )
         self._gen_btn.pack(side="left", padx=(0, 4))
 
         self._regen_btn = ctk.CTkButton(
-            btn_frame, text="Regenerate", font=ctk.CTkFont(size=12),
-            height=34, fg_color=COLOR_ORANGE, hover_color="#D68910",
+            btn_frame, text="Regenerate",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            height=34, corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._regenerate_summary,
         )
         self._regen_btn.pack(side="left", padx=4)
 
         self._export_btn = ctk.CTkButton(
-            btn_frame, text="Export XLSX", font=ctk.CTkFont(size=12),
-            height=34, fg_color=COLOR_GREEN, hover_color="#219A52",
+            btn_frame, text="Export XLSX",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12, weight="bold"),
+            height=34, corner_radius=20, fg_color=COLOR_GREEN, hover_color="#1B8A4A",
             command=self._export_xlsx,
         )
         self._export_btn.pack(side="left", padx=4)
 
         self._open_btn = ctk.CTkButton(
-            btn_frame, text="Open File", font=ctk.CTkFont(size=12),
-            height=34, fg_color="#7F8C8D", hover_color="#5D6D7E",
+            btn_frame, text="Open File",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            height=34, corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._open_exported_file, state="disabled",
         )
         self._open_btn.pack(side="left", padx=4)
 
         self._last_export_path: Optional[str] = None
-        self._status_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM)
+        self._status_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM)
         self._status_label.pack(anchor="w", padx=14, pady=(0, 4))
 
     def on_show(self):
@@ -1490,79 +1837,87 @@ class SettingsFrame(ctk.CTkFrame):
         self.app = app
 
         # ── Ollama status ──
-        ollama_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        ollama_frame.pack(fill="x", padx=10, pady=(10, 5))
+        ollama_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        ollama_frame.pack(fill="x", padx=12, pady=(10, 5))
 
         row = ctk.CTkFrame(ollama_frame, fg_color="transparent")
-        row.pack(fill="x", padx=10, pady=8)
+        row.pack(fill="x", padx=12, pady=8)
 
-        self._ollama_dot = ctk.CTkLabel(row, text="\u25CF", font=ctk.CTkFont(size=14), text_color=COLOR_DIM, width=20)
-        self._ollama_dot.pack(side="left")
-        self._ollama_status = ctk.CTkLabel(row, text="Ollama: checking...", font=ctk.CTkFont(size=12))
+        self._ollama_dot_frame = ctk.CTkFrame(row, width=10, height=10, corner_radius=5, fg_color=COLOR_DIM)
+        self._ollama_dot_frame.pack(side="left", padx=(0, 6))
+        self._ollama_dot_frame.pack_propagate(False)
+        self._ollama_status = ctk.CTkLabel(row, text="Ollama: checking...", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT)
         self._ollama_status.pack(side="left", padx=4)
 
         refresh_btn = ctk.CTkButton(
-            row, text="Refresh", width=60, height=26, font=ctk.CTkFont(size=11),
+            row, text="Refresh", width=60, height=26,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=self._check_ollama,
         )
         refresh_btn.pack(side="right")
 
         # ── Model selector ──
-        model_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        model_frame.pack(fill="x", padx=10, pady=5)
+        model_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        model_frame.pack(fill="x", padx=12, pady=5)
 
-        ctk.CTkLabel(model_frame, text="Model:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(8, 2))
+        ctk.CTkLabel(model_frame, text="Model:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12, pady=(8, 2))
         self._model_combo = ctk.CTkComboBox(
             model_frame, values=[],
-            font=ctk.CTkFont(size=12), command=self._on_model_changed,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12), corner_radius=10,
+            command=self._on_model_changed,
         )
-        self._model_combo.pack(padx=10, pady=(2, 2), fill="x")
+        self._model_combo.pack(padx=12, pady=(2, 2), fill="x")
 
         self._model_desc = ctk.CTkLabel(
-            model_frame, text="", font=ctk.CTkFont(size=11), text_color=COLOR_DIM,
+            model_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM,
             wraplength=370, anchor="w",
         )
-        self._model_desc.pack(anchor="w", padx=10, pady=(0, 4))
+        self._model_desc.pack(anchor="w", padx=12, pady=(0, 4))
 
         self._model_ctx_label = ctk.CTkLabel(
-            model_frame, text="", font=ctk.CTkFont(size=10), text_color=COLOR_DIM,
+            model_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
         )
-        self._model_ctx_label.pack(anchor="w", padx=10, pady=(0, 8))
+        self._model_ctx_label.pack(anchor="w", padx=12, pady=(0, 8))
 
         # ── Screenshot settings ──
-        capture_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        capture_frame.pack(fill="x", padx=10, pady=5)
+        capture_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        capture_frame.pack(fill="x", padx=12, pady=5)
 
         # Interval slider
-        ctk.CTkLabel(capture_frame, text="Screenshot Interval:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(8, 0))
+        ctk.CTkLabel(capture_frame, text="Screenshot Interval:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12, pady=(8, 0))
         interval_row = ctk.CTkFrame(capture_frame, fg_color="transparent")
-        interval_row.pack(fill="x", padx=10, pady=2)
+        interval_row.pack(fill="x", padx=12, pady=2)
         import englog.config as _cfg
         self._interval_slider = ctk.CTkSlider(
             interval_row, from_=10, to=120, number_of_steps=22,
+            button_color=COLOR_ACCENT, progress_color=COLOR_ACCENT,
             command=self._on_interval_changed,
         )
         self._interval_slider.set(_cfg.SCREENSHOT_INTERVAL_SECONDS)
         self._interval_slider.pack(side="left", fill="x", expand=True)
-        self._interval_label = ctk.CTkLabel(interval_row, text=f"{_cfg.SCREENSHOT_INTERVAL_SECONDS}s", font=ctk.CTkFont(size=12), width=40)
+        self._interval_label = ctk.CTkLabel(interval_row, text=f"{_cfg.SCREENSHOT_INTERVAL_SECONDS}s", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT, width=40)
         self._interval_label.pack(side="right", padx=4)
 
         # Quality slider
-        ctk.CTkLabel(capture_frame, text="Screenshot Quality:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(4, 0))
+        ctk.CTkLabel(capture_frame, text="Screenshot Quality:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12, pady=(4, 0))
         quality_row = ctk.CTkFrame(capture_frame, fg_color="transparent")
-        quality_row.pack(fill="x", padx=10, pady=(2, 0))
+        quality_row.pack(fill="x", padx=12, pady=(2, 0))
         self._quality_slider = ctk.CTkSlider(
             quality_row, from_=10, to=95, number_of_steps=17,
+            button_color=COLOR_ACCENT, progress_color=COLOR_ACCENT,
             command=self._on_quality_changed,
         )
         self._quality_slider.set(_cfg.SCREENSHOT_QUALITY)
         self._quality_slider.pack(side="left", fill="x", expand=True)
-        self._quality_label = ctk.CTkLabel(quality_row, text=str(_cfg.SCREENSHOT_QUALITY), font=ctk.CTkFont(size=12), width=40)
+        self._quality_label = ctk.CTkLabel(quality_row, text=str(_cfg.SCREENSHOT_QUALITY), font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT, width=40)
         self._quality_label.pack(side="right", padx=4)
 
         # Storage estimate hint (updated dynamically)
         self._capture_hint = ctk.CTkLabel(
-            capture_frame, text="", font=ctk.CTkFont(size=10), text_color=COLOR_DIM,
+            capture_frame, text="", font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color=COLOR_DIM,
             anchor="w",
         )
         self._capture_hint.pack(anchor="w", padx=14, pady=(0, 8))
@@ -1572,21 +1927,35 @@ class SettingsFrame(ctk.CTkFrame):
         self._sizes_measured = False
 
         # ── Data directory ──
-        data_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=8, border_width=1, border_color=COLOR_BORDER)
-        data_frame.pack(fill="x", padx=10, pady=5)
+        data_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12, border_width=1, border_color=COLOR_BORDER)
+        data_frame.pack(fill="x", padx=12, pady=5)
 
-        ctk.CTkLabel(data_frame, text="Data Directory:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=10, pady=(8, 2))
+        ctk.CTkLabel(data_frame, text="Data Directory:", font=ctk.CTkFont(family=FONT_FAMILY, size=12), text_color=COLOR_TEXT).pack(anchor="w", padx=12, pady=(8, 2))
         dir_row = ctk.CTkFrame(data_frame, fg_color="transparent")
-        dir_row.pack(fill="x", padx=10, pady=(0, 8))
-        ctk.CTkLabel(dir_row, text=str(DATA_DIR), font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(side="left", fill="x", expand=True)
+        dir_row.pack(fill="x", padx=12, pady=(0, 8))
+        ctk.CTkLabel(dir_row, text=str(DATA_DIR), font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM).pack(side="left", fill="x", expand=True)
         ctk.CTkButton(
-            dir_row, text="Open", width=50, height=24, font=ctk.CTkFont(size=11),
+            dir_row, text="Open", width=50, height=24,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
             command=lambda: os.startfile(str(DATA_DIR)) if os.path.isdir(str(DATA_DIR)) else None,
         ).pack(side="right")
 
+        # ── Reset to defaults ──
+        ctk.CTkButton(
+            self, text="Reset to Defaults", width=130, height=30,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            corner_radius=16, fg_color=COLOR_BTN_SECONDARY_BG,
+            hover_color=COLOR_BTN_SECONDARY_HOVER, text_color=COLOR_TEXT,
+            border_width=1, border_color=COLOR_BORDER,
+            command=self._reset_to_defaults,
+        ).pack(anchor="w", padx=12, pady=(8, 0))
+
         # ── Footer ──
-        ctk.CTkLabel(self, text="Settings apply to new sessions.", font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(anchor="w", padx=14, pady=(10, 2))
-        ctk.CTkLabel(self, text="EngLog v1.0.0", font=ctk.CTkFont(size=11), text_color=COLOR_DIM).pack(anchor="w", padx=14, pady=(0, 10))
+        ctk.CTkLabel(self, text="Settings apply to new sessions.", font=ctk.CTkFont(family=FONT_FAMILY, size=11), text_color=COLOR_DIM).pack(anchor="w", padx=16, pady=(8, 2))
+        ctk.CTkLabel(self, text="EngLog v1.0.0", font=ctk.CTkFont(family=FONT_FAMILY, size=10), text_color="#C0C0C0").pack(anchor="w", padx=16, pady=(0, 10))
 
     def on_show(self):
         self._check_ollama()
@@ -1645,7 +2014,7 @@ class SettingsFrame(ctk.CTkFrame):
         )
 
     def _check_ollama(self):
-        self._ollama_dot.configure(text_color=COLOR_DIM)
+        self._ollama_dot_frame.configure(fg_color=COLOR_DIM)
         self._ollama_status.configure(text="Ollama: checking...")
 
         def work():
@@ -1662,14 +2031,14 @@ class SettingsFrame(ctk.CTkFrame):
 
         def done(result, err):
             if err:
-                self._ollama_dot.configure(text_color=COLOR_RED)
+                self._ollama_dot_frame.configure(fg_color=COLOR_RED)
                 self._ollama_status.configure(text=f"Ollama: error ({err})")
                 return
             connected, installed, current_model = result
             self._installed_models = installed
             if connected:
                 current_ok = current_model in installed
-                self._ollama_dot.configure(text_color=COLOR_GREEN if current_ok else COLOR_ORANGE)
+                self._ollama_dot_frame.configure(fg_color=COLOR_GREEN if current_ok else COLOR_ORANGE)
                 status = f"Ollama: Connected | Model: {current_model}"
                 if not current_ok:
                     status += " (not installed)"
@@ -1686,7 +2055,7 @@ class SettingsFrame(ctk.CTkFrame):
                 self._model_combo.set(current_model)
                 self._update_model_description(current_model)
             else:
-                self._ollama_dot.configure(text_color=COLOR_RED)
+                self._ollama_dot_frame.configure(fg_color=COLOR_RED)
                 self._ollama_status.configure(text="Ollama: Not connected")
                 # Still show known models so user can see what's available
                 self._model_combo.configure(values=list(MODEL_PROFILES.keys()))
@@ -1732,6 +2101,29 @@ class SettingsFrame(ctk.CTkFrame):
         val = int(value)
         config.SCREENSHOT_QUALITY = val
         self._quality_label.configure(text=str(val))
+        self._update_capture_hint()
+        config.save_settings()
+
+    def _reset_to_defaults(self):
+        """Reset model, interval, and quality to factory defaults."""
+        import englog.config as config
+
+        # Model → mistral
+        config.OLLAMA_MODEL = "mistral"
+        config.OLLAMA_NUM_CTX = 32768
+        self._model_combo.set("mistral")
+        self._update_model_description("mistral")
+
+        # Interval → 30s
+        config.SCREENSHOT_INTERVAL_SECONDS = 30
+        self._interval_slider.set(30)
+        self._interval_label.configure(text="30s")
+
+        # Quality → 40
+        config.SCREENSHOT_QUALITY = 40
+        self._quality_slider.set(40)
+        self._quality_label.configure(text="40")
+
         self._update_capture_hint()
         config.save_settings()
 
